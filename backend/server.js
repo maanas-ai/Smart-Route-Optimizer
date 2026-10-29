@@ -40,12 +40,20 @@ app.use(express.static(staticPath, {
 }));
 
 // Also explicitly serve the standalone vanilla frontend at /frontend and /vanilla
+app.use('/frontend/config', express.static(path.join(__dirname, '../config'), {
+  etag: false,
+  maxAge: 0
+}));
 app.use('/frontend', express.static(path.join(__dirname, '../frontend'), {
   etag: false,
   maxAge: 0,
   setHeaders: (res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   }
+}));
+app.use('/vanilla/config', express.static(path.join(__dirname, '../config'), {
+  etag: false,
+  maxAge: 0
 }));
 app.use('/vanilla', express.static(path.join(__dirname, '../frontend'), {
   etag: false,

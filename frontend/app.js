@@ -259,7 +259,7 @@ function localComputeRoutePlan(bins) {
  */
 async function fetchData() {
   try {
-    if (window.location.protocol === 'file:') {
+    if (window.location.protocol === 'file:' || window.STATIC_DEMO_MODE) {
       throw new Error('Running in standalone file:// mode');
     }
 
@@ -527,7 +527,7 @@ async function simulateBin(houseId, fillPct = 90) {
   }
 
   // 2. If running via HTTP, notify the backend server
-  if (window.location.protocol !== 'file:') {
+  if (window.location.protocol !== 'file:' && !window.STATIC_DEMO_MODE) {
     try {
       const res = await fetch('/api/demo/simulate-bin', {
         method: 'POST',
@@ -577,7 +577,7 @@ async function resetAllBins() {
   localState.truck.status = 'Stationary at Central Depot';
 
   // 2. If running via HTTP, notify the backend server
-  if (window.location.protocol !== 'file:') {
+  if (window.location.protocol !== 'file:' && !window.STATIC_DEMO_MODE) {
     try {
       const res = await fetch('/api/demo/reset', { method: 'POST' });
       const data = await res.json();
@@ -669,16 +669,18 @@ function toggleTruckSimulation() {
     }
 
     // Post to backend demo truck endpoint (fire-and-forget style)
-    fetch('/api/demo/simulate-truck-step', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        lat: currentPoint[0],
-        lon: currentPoint[1],
-        speed_kmh: 30,
-        status: 'Moving along Optimized Street Route'
-      })
-    }).catch(e => console.warn('Truck sim step failed:', e));
+    if (!window.STATIC_DEMO_MODE) {
+      fetch('/api/demo/simulate-truck-step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: currentPoint[0],
+          lon: currentPoint[1],
+          speed_kmh: 30,
+          status: 'Moving along Optimized Street Route'
+        })
+      }).catch(e => console.warn('Truck sim step failed:', e));
+    }
 
     // Update telemetry KPI cards
     document.getElementById('kpi-truck-status').textContent = 'Moving along Optimized Street Route';

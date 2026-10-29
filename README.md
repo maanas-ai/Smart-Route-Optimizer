@@ -131,6 +131,12 @@ npm run dev
 > # Then serve with: npm start  (serves dist/ at http://localhost:3000)
 > ```
 
+### Publish the dashboard on GitHub Pages
+
+The repository includes a GitHub Actions workflow that publishes the standalone dashboard as a static demo. Push to the `main` branch, then in GitHub open **Settings → Pages** and set the build and deployment source to **GitHub Actions**. The workflow deploys the site automatically; its URL will appear in the Pages settings and deployment run.
+
+GitHub Pages does not run the Express backend, so the published dashboard uses browser-only demo data and its simulation controls. Live Arduino/GPS data and backend APIs require the local Node.js server.
+
 ### Browser URL
 - **Development:** `http://localhost:5173`
 - **Production:** `http://localhost:3000`

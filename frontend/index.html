@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart City Waste Management - Route Optimizer</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS for OpenStreetMap -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation / Header -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+      </div>
+      <div>
+        <h1>Smart City Waste Management</h1>
+        <p class="subtitle">GPS-Based House-to-House Dynamic Route Optimizer</p>
+      </div>
+    </div>
+
+    <!-- System Badges -->
+    <div class="system-status-badges">
+      <div class="badge badge-iot" id="iot-status-badge">
+        <span class="indicator pulse-green"></span>
+        <span>ESP8266: <strong id="iot-conn-text">Active</strong></span>
+      </div>
+      <div class="badge badge-gps" id="gps-mode-badge">
+        <span class="indicator pulse-blue" id="gps-indicator"></span>
+        <span id="gps-mode-label">DEMO GPS</span>
+      </div>
+      <div class="badge badge-route" id="algorithm-badge">
+        <span>Nearest Neighbor + 2-Opt</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Container -->
+  <main class="dashboard-grid">
+
+    <!-- KPI Summary Row -->
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-title">Total Monitored Houses</div>
+        <div class="kpi-value" id="kpi-total-houses">5</div>
+        <div class="kpi-sub">HC-SR04 Ultrasonic Nodes</div>
+      </div>
+
+      <div class="kpi-card highlight-critical" id="kpi-collection-card">
+        <div class="kpi-title">Bins Requiring Collection (≥80%)</div>
+        <div class="kpi-value" id="kpi-required-count">2</div>
+        <div class="kpi-sub" id="kpi-required-sub">Added to Dynamic Route</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-title">Garbage Truck Telemetry</div>
+        <div class="kpi-value-small" id="kpi-truck-status">At Central Depot</div>
+        <div class="kpi-sub" id="kpi-truck-coords">Lat: 12.9716, Lon: 77.5946</div>
+      </div>
+
+      <div class="kpi-card highlight-green">
+        <div class="kpi-title">Estimated Fuel & Distance Saved</div>
+        <div class="kpi-value" id="kpi-distance-saved">-- %</div>
+        <div class="kpi-sub" id="kpi-fuel-saved">-- L Saved (~₹--)</div>
+      </div>
+    </section>
+
+    <!-- Content Split: Left (Bins + Demo Controls), Right (Map + Route Analytics) -->
+    <div class="dashboard-columns">
+      
+      <!-- Left Column: Bin Cards & Hardware-free Demo Simulation Panel -->
+      <section class="left-panel">
+        
+        <!-- Bin Status Cards Section -->
+        <div class="card-panel">
+          <div class="panel-header">
+            <h2>Smart Bin Fill Levels</h2>
+            <span class="badge-sub">Auto-refreshes every 2s</span>
+          </div>
+
+          <div class="bins-grid" id="bins-container">
+            <!-- Dynamically populated via app.js -->
+            <div class="loading-spinner">Loading sensor telemetry...</div>
+          </div>
+        </div>
+
+        <!-- College Exhibition Demo Simulation Control Panel -->
+        <div class="card-panel demo-box">
+          <div class="panel-header">
+            <h2>Exhibition Demo & Simulation Panel</h2>
+            <span class="badge-demo">Hardware-Free Demo Mode</span>
+          </div>
+          <p class="demo-description">
+            Simulate sensor readings and truck movement instantly during your presentation if hardware is offline:
+          </p>
+
+          <div class="demo-buttons-grid">
+            <button class="btn btn-outline" id="btn-simulate-house-a" onclick="simulateBin('house_a', 90)">Simulate House A Full</button>
+            <button class="btn btn-outline" id="btn-simulate-house-b" onclick="simulateBin('house_b', 90)">Simulate House B Full</button>
+            <button class="btn btn-outline" id="btn-simulate-house-c" onclick="simulateBin('house_c', 90)">Simulate House C Full</button>
+            <button class="btn btn-outline" id="btn-simulate-house-d" onclick="simulateBin('house_d', 90)">Simulate House D Full</button>
+            <button class="btn btn-outline" id="btn-simulate-house-e" onclick="simulateBin('house_e', 90)">Simulate House E Full</button>
+          </div>
+
+          <div class="demo-action-buttons">
+            <button class="btn btn-success" id="btn-truck-movement" onclick="toggleTruckSimulation()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="1" y="3" width="15" height="13"></rect>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+              </svg>
+              <span id="btn-truck-text">Simulate Truck Movement</span>
+            </button>
+            <button class="btn btn-danger" id="btn-reset-bins" onclick="resetAllBins()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+              </svg>
+              <span>Reset All Bins</span>
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Interactive Map & Route Optimization Analytics -->
+      <section class="right-panel">
+        
+        <!-- Interactive Leaflet Map -->
+        <div class="card-panel map-card">
+          <div class="panel-header">
+            <h2>Smart City GIS Map View</h2>
+            <div class="map-legend">
+              <span class="legend-item"><span class="dot dot-depot"></span> Depot</span>
+              <span class="legend-item"><span class="dot dot-normal"></span> Normal Bin (<80%)</span>
+              <span class="legend-item"><span class="dot dot-critical"></span> Pickup Required (≥80%)</span>
+              <span class="legend-item"><span class="dot dot-truck"></span> Truck</span>
+            </div>
+          </div>
+          <div id="map" class="map-container"></div>
+        </div>
+
+        <!-- Route Optimization & Environmental Impact Metrics -->
+        <div class="card-panel route-analytics-card">
+          <div class="panel-header">
+            <h2>Optimized Collection Route & Impact Analysis</h2>
+            <span class="tag-algorithm" id="algorithm-name-tag">Nearest Neighbor TSP</span>
+          </div>
+
+          <!-- Dynamic Path Box -->
+          <div class="route-summary-box">
+            <div class="route-path-label">CURRENT RECOMMENDED ROUTE:</div>
+            <div class="route-path-sequence" id="route-sequence-display">
+              All bins normal — No collection trip required (Truck at Depot)
+            </div>
+          </div>
+
+          <!-- Active Collection List / Queue -->
+          <div class="collection-list-section">
+            <div class="route-path-label">COLLECTION LIST / QUEUE (≥80%):</div>
+            <div id="collection-list" class="collection-list-items">
+              <span class="empty-queue-msg">Empty — No bins require collection</span>
+            </div>
+          </div>
+
+          <!-- Metrics Table / Comparison Grid -->
+          <div class="metrics-grid">
+            
+            <div class="metric-block">
+              <div class="m-label">Normal Fixed Route</div>
+              <div class="m-val" id="metric-normal-dist">-- km</div>
+              <div class="m-desc">Static all-house tour</div>
+            </div>
+
+            <div class="metric-block highlight">
+              <div class="m-label">Optimized Route</div>
+              <div class="m-val" id="metric-opt-dist">-- km</div>
+              <div class="m-desc">Targeted pickup loop</div>
+            </div>
+
+            <div class="metric-block highlight-success">
+              <div class="m-label">Distance Saved</div>
+              <div class="m-val" id="metric-dist-saved">-- km</div>
+              <div class="m-desc" id="metric-dist-saved-pct">(0% reduction)</div>
+            </div>
+
+            <div class="metric-block">
+              <div class="m-label">Fuel Saved (Est.)</div>
+              <div class="m-val" id="metric-fuel-saved">-- L</div>
+              <div class="m-desc" id="metric-cost-saved">Est. ₹-- Saved</div>
+            </div>
+
+            <div class="metric-block highlight-green-block">
+              <div class="m-label">CO2 Reduction (Est.)</div>
+              <div class="m-val" id="metric-co2-saved">-- kg</div>
+              <div class="m-desc">Greenhouse gas averted</div>
+            </div>
+
+          </div>
+
+          <div class="disclaimer-note">
+            * Note for evaluation: Distance is calculated via Haversine great-circle formula. Fuel efficiency modeled at 10 km/L (light diesel pickup) with EPA standard 2.64 kg CO2/L emission factor.
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Footer with College Project Credits -->
+  <footer class="footer">
+    <span>GPS-Based Smart House-to-House Garbage Collection Route Optimizer</span>
+    <span>•</span>
+    <span>College Engineering Capstone Prototype</span>
+    <span>•</span>
+    <span>ESP8266 NodeMCU + NEO-6M GPS + Leaflet.js</span>
+  </footer>
+
+  <!-- Leaflet JS Library -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Location Defaults with Inline Fallback for standalone file:// opening -->
+  <script src="../config/locations.js"></script>
+  <script>
+    if (!window.DEMO_LOCATIONS) {
+      window.DEMO_LOCATIONS = {
+        depot: { id: 'depot', name: 'Central Waste Depot', lat: 12.97160, lon: 77.59460, address: 'Smart City Central Hub' },
+        houses: [
+          { id: 'house_a', name: 'House A', lat: 12.97380, lon: 77.59580, address: 'Plot 101, Green Avenue' },
+          { id: 'house_b', name: 'House B', lat: 12.97510, lon: 77.59840, address: 'Plot 102, Lake View Road' },
+          { id: 'house_c', name: 'House C', lat: 12.97240, lon: 77.60010, address: 'Plot 103, East Boulevard' },
+          { id: 'house_d', name: 'House D', lat: 12.96920, lon: 77.59800, address: 'Plot 104, Sunrise Sector' },
+          { id: 'house_e', name: 'House E', lat: 12.96850, lon: 77.59420, address: 'Plot 105, South Park Ring' }
+        ]
+      };
+    }
+  </script>
+  
+  <!-- Pre-cached Real-Road Coordinates for 100% Offline Review -->
+  <script src="roadCache.js"></script>
+  
+  <!-- Frontend Application Script -->
+  <script src="app.js"></script>
+
+</body>
+</html>
